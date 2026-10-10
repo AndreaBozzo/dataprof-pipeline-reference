@@ -1,0 +1,29 @@
+{
+  "policy_version": 1,
+  "dataprof": {
+    "customers": {
+      "check": {
+        "max_null_percentage": {"customer_id": 0, "country_code": 0, "updated_at": 0},
+        "require_metrics": ["completeness"],
+        "scope": "full_source"
+      },
+      "hints": {"identifier_columns": ["customer_id"], "temporal_columns": ["updated_at"]}
+    },
+    "orders": {
+      "check": {
+        "max_null_percentage": {"order_id": 0, "customer_id": 2.0, "amount": 0, "currency": 0, "ordered_at": 0},
+        "require_metrics": ["completeness"],
+        "scope": "full_source"
+      },
+      "hints": {
+        "identifier_columns": ["order_id", "customer_id"],
+        "positive_columns": ["amount"],
+        "temporal_columns": ["ordered_at"]
+      }
+    }
+  },
+  "sql": {
+    "min_rows": {"customers": 1, "orders": 1},
+    "currencies": ["EUR", "GBP", "USD"]
+  }
+}

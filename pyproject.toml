@@ -1,0 +1,46 @@
+[project]
+name = "dataprof-pipeline-reference"
+version = "0.1.0"
+description = "Reference pipeline: dlt loads, dataprof and SQL gate, DuckDB publishes atomically."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = "MIT OR Apache-2.0"
+license-files = ["LICENSE-MIT", "LICENSE-APACHE"]
+authors = [{ name = "Andrea Bozzo" }]
+dependencies = [
+    "dataprof==0.12.0",
+    "dlt[duckdb]==1.31.0",
+    "duckdb==1.5.6",
+    "pyarrow==26.0.0",
+    "portalocker==4.4.0",
+    "pyyaml==6.0.3",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff>=0.15",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pipeline_reference"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+# Spikes are kept as recorded evidence, not maintained code.
+extend-exclude = ["spikes"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.uv]
+# sqlglot 30.22.0 breaks dlt 1.31.0 dataset lineage (dlt-hub/dlt#4537).
+constraint-dependencies = ["sqlglot<30.22"]

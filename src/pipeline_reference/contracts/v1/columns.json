@@ -1,0 +1,27 @@
+{
+  "contract_version": 1,
+  "dataset_group": "shop",
+  "tables": {
+    "customers": {
+      "file": "customers.jsonl",
+      "key": "customer_id",
+      "columns": {
+        "customer_id": {"dlt": {"data_type": "text", "nullable": false}, "duckdb": "VARCHAR"},
+        "country_code": {"dlt": {"data_type": "text", "nullable": false}, "duckdb": "VARCHAR"},
+        "updated_at": {"dlt": {"data_type": "timestamp", "timezone": true, "nullable": false}, "duckdb": "TIMESTAMP WITH TIME ZONE"}
+      }
+    },
+    "orders": {
+      "file": "orders.jsonl",
+      "key": "order_id",
+      "columns": {
+        "order_id": {"dlt": {"data_type": "text", "nullable": false}, "duckdb": "VARCHAR"},
+        "customer_id": {"dlt": {"data_type": "text", "nullable": true}, "duckdb": "VARCHAR"},
+        "amount": {"dlt": {"data_type": "decimal", "precision": 12, "scale": 2, "nullable": false}, "duckdb": "DECIMAL(12,2)"},
+        "currency": {"dlt": {"data_type": "text", "nullable": false}, "duckdb": "VARCHAR"},
+        "ordered_at": {"dlt": {"data_type": "timestamp", "timezone": true, "nullable": false}, "duckdb": "TIMESTAMP WITH TIME ZONE"}
+      }
+    }
+  },
+  "dlt_metadata_columns": ["_dlt_load_id", "_dlt_id"]
+}

@@ -1,0 +1,218 @@
+version: 2
+version_hash: MxIIgI6Hyc/MF2NB0X8Ta0zv0sXkUlcerpK7Bu7IWTg=
+engine_version: 11
+name: shop
+tables:
+  _dlt_version:
+    name: _dlt_version
+    columns:
+      version:
+        name: version
+        data_type: bigint
+        nullable: false
+        description: Numeric version of the schema, incremented on each schema change
+      engine_version:
+        name: engine_version
+        data_type: bigint
+        nullable: false
+        description: Version of the dlt schema engine that created this schema
+      inserted_at:
+        name: inserted_at
+        data_type: timestamp
+        nullable: false
+        description: Timestamp when this schema version was stored
+      schema_name:
+        name: schema_name
+        data_type: text
+        nullable: false
+        description: Name of the schema
+      version_hash:
+        name: version_hash
+        data_type: text
+        nullable: false
+        description: Unique hash of the schema content, used to detect changes
+      schema:
+        name: schema
+        data_type: text
+        nullable: false
+        description: JSON representation of the complete schema definition
+    write_disposition: skip
+    resource: _dlt_version
+    description: Created by DLT. Tracks schema updates
+  _dlt_loads:
+    name: _dlt_loads
+    columns:
+      load_id:
+        name: load_id
+        data_type: text
+        nullable: false
+        precision: 64
+        description: Unique identifier of the load operation
+      schema_name:
+        name: schema_name
+        data_type: text
+        nullable: true
+        description: Name of the schema associated with this load
+      status:
+        name: status
+        data_type: bigint
+        nullable: false
+        description: Status of the load operation (0 = success)
+      inserted_at:
+        name: inserted_at
+        data_type: timestamp
+        nullable: false
+        description: Timestamp when the load was completed
+      schema_version_hash:
+        name: schema_version_hash
+        data_type: text
+        nullable: true
+        description: Hash of the schema version used during this load
+    write_disposition: skip
+    resource: _dlt_loads
+    description: Created by DLT. Tracks completed loads
+  customers:
+    columns:
+      customer_id:
+        data_type: text
+        nullable: false
+        name: customer_id
+      country_code:
+        data_type: text
+        nullable: false
+        name: country_code
+      updated_at:
+        data_type: timestamp
+        timezone: true
+        nullable: false
+        name: updated_at
+      _dlt_load_id:
+        name: _dlt_load_id
+        data_type: text
+        nullable: false
+      _dlt_id:
+        name: _dlt_id
+        data_type: text
+        nullable: false
+        unique: true
+        row_key: true
+    write_disposition: replace
+    name: customers
+    resource: customers
+    x-normalizer:
+      seen-data: true
+  orders:
+    columns:
+      order_id:
+        data_type: text
+        nullable: false
+        name: order_id
+      customer_id:
+        data_type: text
+        nullable: true
+        name: customer_id
+      amount:
+        data_type: decimal
+        precision: 12
+        scale: 2
+        nullable: false
+        name: amount
+      currency:
+        data_type: text
+        nullable: false
+        name: currency
+      ordered_at:
+        data_type: timestamp
+        timezone: true
+        nullable: false
+        name: ordered_at
+      _dlt_load_id:
+        name: _dlt_load_id
+        data_type: text
+        nullable: false
+      _dlt_id:
+        name: _dlt_id
+        data_type: text
+        nullable: false
+        unique: true
+        row_key: true
+    write_disposition: replace
+    name: orders
+    resource: orders
+    x-normalizer:
+      seen-data: true
+  _dlt_pipeline_state:
+    columns:
+      version:
+        name: version
+        data_type: bigint
+        nullable: false
+        description: Numeric version of the pipeline state
+      engine_version:
+        name: engine_version
+        data_type: bigint
+        nullable: false
+        description: Version of the dlt state engine
+      pipeline_name:
+        name: pipeline_name
+        data_type: text
+        nullable: false
+        description: Name of the pipeline this state belongs to
+      state:
+        name: state
+        data_type: text
+        nullable: false
+        description: Compressed JSON representation of the pipeline state
+      created_at:
+        name: created_at
+        data_type: timestamp
+        nullable: false
+        description: Timestamp when this state was created
+      version_hash:
+        name: version_hash
+        data_type: text
+        nullable: true
+        description: Hash of the state content, used to detect changes
+      _dlt_load_id:
+        name: _dlt_load_id
+        data_type: text
+        nullable: false
+        precision: 64
+        description: Load identifier linking this row to its load operation
+      _dlt_id:
+        name: _dlt_id
+        data_type: text
+        nullable: false
+        unique: true
+        row_key: true
+    write_disposition: append
+    file_format: preferred
+    name: _dlt_pipeline_state
+    resource: _dlt_pipeline_state
+    x-normalizer:
+      seen-data: true
+settings:
+  detections:
+  - iso_timestamp
+  default_hints:
+    not_null:
+    - _dlt_id
+    - _dlt_root_id
+    - _dlt_parent_id
+    - _dlt_list_idx
+    - _dlt_load_id
+    parent_key:
+    - _dlt_parent_id
+    root_key:
+    - _dlt_root_id
+    unique:
+    - _dlt_id
+    row_key:
+    - _dlt_id
+normalizers:
+  names: snake_case
+  json:
+    module: dlt.common.normalizers.json.relational
+previous_hashes:
+- hWuEBzyj9AXjYleFXs2zcmIJMOQDAbhBJYtluoK8nVc=
+- rnCXPakln2R/YTn3Kqlynw5yycfJgfmeKRCxmGasKKs=
