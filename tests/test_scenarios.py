@@ -104,3 +104,21 @@ def test_null_rate_observed_matches_planted(ws, snapshots):
     )
     assert check["status"] == "failed"
     assert check["observed"] == pytest.approx(8.0)
+
+
+def test_truncated_snapshot_is_caught_by_the_volume_floor(ws, snapshots):
+    """A consistent but cut-short extract passes every rule except volume."""
+    first = run_snapshot(ws, snapshots("healthy", "b1"))
+    before = published_state(ws)
+
+    result = run_snapshot(ws, snapshots("truncated_snapshot", "b2", seed=7))
+
+    assert result.outcome == "rejected", result.lines
+    assert published_state(ws) == before
+    assert ws.db.execute("SELECT count(*) FROM published.orders").fetchone()[0] == ORDERS
+    evaluation = ledger.latest_evaluation(ws.db, result.run_id)
+    failed = [a["id"] for a in evaluation["sql_assertions"] if not a["passed"]]
+    assert failed == ["volume.customers", "volume.orders"]
+    verdicts = {t: g["verdict"] for t, g in evaluation["gates"].items()}
+    assert verdicts == {"customers": "pass", "orders": "pass"}
+    assert first.outcome == "accepted"

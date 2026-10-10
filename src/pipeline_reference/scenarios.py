@@ -78,6 +78,18 @@ def _empty_orders(rows: Rows, rnd: random.Random) -> None:
     rows["orders"].clear()
 
 
+def _truncated_snapshot(rows: Rows, rnd: random.Random) -> None:
+    """An extract that stopped early: 5% of the customers and their orders.
+
+    The slice is internally consistent (no orphans, no guest orders to skew
+    the null rate), so the volume floor is the only rule that can catch it.
+    """
+    customers = rows["customers"][: len(rows["customers"]) // 20]
+    kept = {row["customer_id"] for row in customers}
+    rows["customers"] = customers
+    rows["orders"] = [o for o in rows["orders"] if o["customer_id"] in kept]
+
+
 SCENARIOS = {
     s.name: s
     for s in (
@@ -98,6 +110,12 @@ SCENARIOS = {
         Scenario("bad_amount", "one amount that is not a number", "rejected", _bad_amount),
         Scenario("missing_amount", "one order without amount", "rejected", _missing_amount),
         Scenario("empty_orders", "no orders at all", "rejected", _empty_orders),
+        Scenario(
+            "truncated_snapshot",
+            "5% of each table, below the volume floor",
+            "rejected",
+            _truncated_snapshot,
+        ),
         Scenario(
             "capped_profile",
             "valid snapshot profiled with a deliberate row cap",

@@ -35,7 +35,8 @@ A development build reports the last release's version
 ## Upgrading a dependency
 
 1. Install the candidate set in a fresh environment.
-2. `reevaluate` retained runs under it; old evaluations stay as they were.
+2. `reevaluate` retained runs under it. It records evidence only; old
+   evaluations and the publication stay as they were.
 3. Compare outcomes and gate evidence for runs with the same source digest,
    projection and policy digest.
 4. Record changed behavior here; update `tests/test_compat.py` expectations.

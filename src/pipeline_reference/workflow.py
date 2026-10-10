@@ -17,7 +17,7 @@ import duckdb
 import portalocker
 
 from . import faults, ingest, ledger, publish
-from .contract import Contract, load_contract
+from .contract import DEFAULT_VERSION, Contract, ContractNotFound, load_contract
 from .evaluate import (
     ACCEPTED,
     INCONCLUSIVE,
@@ -27,10 +27,28 @@ from .evaluate import (
     Evidence,
     run_gates,
 )
-from .source import InputError, Snapshot, read_manifest, retain, verify
+from .source import (
+    InputError,
+    Snapshot,
+    manifest_contract_version,
+    read_manifest,
+    retain,
+    verify,
+)
 
 INPUT_ERROR = "input_error"
 DONE = "done"
+
+# What an evaluation did about publication, recorded beside its outcome.
+PUBLISHED = "published"
+NOT_REQUESTED = "not_requested"
+ALREADY_ACTIVE = "already_active"
+NOT_ELIGIBLE = "not_eligible"
+
+# How an evaluation may publish. `auto` publishes an accepted run only while the
+# publication it started from is still active; `record` never publishes;
+# `promote` publishes an accepted run because an operator asked for it.
+AUTO, RECORD, PROMOTE = "auto", "record", "promote"
 EXIT_CODES = {
     ACCEPTED: 0,
     DONE: 0,
@@ -155,11 +173,11 @@ def _input_error(exc: BaseException) -> InputError | None:
 
 
 def run_snapshot(ws: Workspace, directory: Path, *, max_rows: int | None = None) -> Result:
-    contract = load_contract()
     try:
+        contract = load_contract(manifest_contract_version(Path(directory)))
         snapshot = read_manifest(Path(directory), contract)
         verify(snapshot)
-    except InputError as exc:
+    except (InputError, ContractNotFound) as exc:
         return Result(INPUT_ERROR, [f"input error: {exc}"])
 
     previous = ledger.runs_for_batch(ws.db, contract.dataset_group, snapshot.batch_id)
@@ -201,6 +219,8 @@ def _attempt(
         manifest=snapshot.manifest,
         source_digest=snapshot.digest,
         contract_version=contract.version,
+        columns_digest=contract.columns_digest,
+        dlt_schema_digest=contract.dlt_schema_digest,
         versions=versions(),
         retry_of=retry_of,
     )
@@ -222,7 +242,8 @@ def _attempt(
         ledger.set_stage(ws.db, run.run_id, "blocked", {"problems": [str(exc)]})
         return Result(
             REJECTED,
-            header + [f"  blocked during load: {exc}", "outcome: rejected", *_published(ws)],
+            header
+            + [f"  blocked during load: {exc}", "outcome: rejected", *_published(ws, contract)],
             run.run_id,
         )
     except Exception as exc:
@@ -233,7 +254,8 @@ def _attempt(
         ledger.set_stage(ws.db, run.run_id, "load_failed", {"error": describe_error(exc)})
         return Result(
             OPERATIONAL,
-            header + [f"operational error during load: {describe_error(exc)}", *_published(ws)],
+            header
+            + [f"operational error during load: {describe_error(exc)}", *_published(ws, contract)],
             run.run_id,
         )
 
@@ -244,10 +266,12 @@ def _attempt(
     if problems:
         ledger.set_stage(ws.db, run.run_id, "blocked", {**detail, "problems": problems})
         lines = [f"  blocked before evaluation: {p}" for p in problems]
-        return Result(REJECTED, header + lines + ["outcome: rejected", *_published(ws)], run.run_id)
+        return Result(
+            REJECTED, header + lines + ["outcome: rejected", *_published(ws, contract)], run.run_id
+        )
     ledger.set_stage(ws.db, run.run_id, "ready", detail)
     faults.crash("crash_after_ready")
-    result = evaluate_and_publish(ws, contract, ledger.get_run(ws.db, run.run_id), max_rows)
+    result = evaluate(ws, contract, ledger.get_run(ws.db, run.run_id), max_rows, mode=AUTO)
     result.lines[:0] = header
     return result
 
@@ -255,9 +279,22 @@ def _attempt(
 # -- evaluation and publication ----------------------------------------------
 
 
-def evaluate_and_publish(
-    ws: Workspace, contract: Contract, run: ledger.Run, max_rows: int | None
+def evaluate(
+    ws: Workspace,
+    contract: Contract,
+    run: ledger.Run,
+    max_rows: int | None,
+    *,
+    mode: str,
+    reason: str | None = None,
 ) -> Result:
+    """Gate the candidate and decide publication in one transaction.
+
+    The evaluation records the quality outcome as the gates decided it and,
+    separately, what happened to publication, so a re-evaluation under new
+    dependencies stays comparable with the original whatever the publication
+    state is now.
+    """
     conn = ws.db
     runtime = versions()
     conn.begin()
@@ -265,38 +302,57 @@ def evaluate_and_publish(
         evidence = run_gates(conn, contract, run.candidate_schema, max_rows=max_rows)
         outcome = evidence.outcome()
         current = ledger.active(conn, contract.dataset_group)
-        is_active = current is not None and current[0] == run.run_id
+        current_event = current[1] if current else None
         notes = []
-        if outcome == ACCEPTED and not is_active:
-            current_event = current[1] if current else None
-            if current_event != run.base_event_id:
-                outcome = STALE
-                notes.append(
-                    f"gates accepted, but publication {current_event} replaced "
-                    f"{run.base_event_id} after this run started; not publishing"
-                )
-        elif is_active:
-            notes.append("this run is the active publication; the evaluation is recorded only")
+        if current is not None and current[0] == run.run_id:
+            publication = ALREADY_ACTIVE
             if outcome != ACCEPTED:
                 notes.append("the published data no longer passes; consider `rollback`")
+        elif outcome != ACCEPTED:
+            publication = NOT_ELIGIBLE
+        elif mode == RECORD:
+            publication = NOT_REQUESTED
+        elif mode == AUTO and current_event != run.base_event_id:
+            publication = STALE
+            notes.append(
+                f"publication {current_event} replaced {run.base_event_id} after this run "
+                "started; not publishing (`promote` publishes it deliberately)"
+            )
+        else:
+            publication = PUBLISHED
         evaluation_id = ledger.insert_evaluation(
             conn,
             run.run_id,
             outcome,
+            publication=publication,
             policy_version=contract.policy["policy_version"],
             policy_digest=contract.policy_digest,
+            columns_digest=contract.columns_digest,
+            dlt_schema_digest=contract.dlt_schema_digest,
             policy=contract.policy,
             projections=evidence.projections,
             arrow_schemas=evidence.arrow_schemas,
             reports=evidence.reports,
             gates=evidence.gates,
             sql_assertions=evidence.sql_assertions,
-            detail={"profile_options": evidence.profile_options, "notes": notes},
+            detail={
+                "profile_options": evidence.profile_options,
+                "mode": mode,
+                "reason": reason,
+                "notes": notes,
+            },
             versions=runtime,
         )
         event_id = None
-        if outcome == ACCEPTED and not is_active:
-            event_id = publish.publish(conn, contract, run, evaluation_id)
+        if publication == PUBLISHED:
+            event_id = publish.publish(
+                conn,
+                contract,
+                run,
+                evaluation_id,
+                action="promote" if mode == PROMOTE else "publish",
+                reason=reason,
+            )
         faults.crash("crash_before_commit")
         conn.commit()
     except Exception as exc:
@@ -305,15 +361,27 @@ def evaluate_and_publish(
         lines = [f"operational error during evaluation: {describe_error(exc)}"]
         if not recorded:
             lines.append("  the error could not be recorded in the ledger")
-        return Result(OPERATIONAL, lines + _published(ws), run.run_id)
+        return Result(OPERATIONAL, lines + _published(ws, contract), run.run_id)
     faults.crash("crash_after_commit")
     lines = format_evidence(evidence) + [f"  note: {n}" for n in notes]
-    lines += [f"outcome: {outcome}", *_published(ws)]
+    lines += [f"outcome: {outcome}", _publication_line(publication, event_id)]
+    lines += _published(ws, contract)
     try:
         export_evaluation(ws, run.run_id, evaluation_id)
     except Exception as exc:  # the ledger is authoritative; `export` can redo this
         lines.append(f"  warning: export failed ({exc!r}); run `export {run.run_id}`")
-    return Result(outcome, lines, run.run_id, event_id)
+    return Result(STALE if publication == STALE else outcome, lines, run.run_id, event_id)
+
+
+def _publication_line(publication: str | None, event_id: str | None = None) -> str:
+    text = {
+        PUBLISHED: f"published as event {event_id}" if event_id else "published",
+        STALE: "not published: a newer publication replaced this run's base",
+        NOT_REQUESTED: "not published: `reevaluate` records evidence only",
+        ALREADY_ACTIVE: "already the active publication",
+        NOT_ELIGIBLE: "not published: the outcome is not accepted",
+    }.get(publication or "", "not recorded")
+    return f"publication: {text}"
 
 
 def _record_operational(
@@ -344,6 +412,39 @@ def _ready_detail(ws: Workspace, run_id: str) -> dict[str, Any]:
     return json.loads(row[0]) if row else {}
 
 
+def contract_for(run: ledger.Run) -> Contract:
+    """The contract a run was loaded under, by its recorded version.
+
+    Raises ``ContractChanged`` when that version's files differ from the ones
+    the run recorded: the candidate was validated against other rules, so
+    reading it under these would mix two contracts under one version number.
+    """
+    contract = load_contract(run.contract_version)
+    recorded = (run.columns_digest, run.dlt_schema_digest)
+    current = (contract.columns_digest, contract.dlt_schema_digest)
+    if run.columns_digest is not None and recorded != current:
+        raise ContractChanged(
+            f"contract v{run.contract_version} changed since run {run.run_id} loaded under it; "
+            "restore its files, or publish the change as a new contract version"
+        )
+    return contract
+
+
+class ContractChanged(RuntimeError):
+    pass
+
+
+def _run_and_contract(ws: Workspace, run_id: str) -> tuple[ledger.Run, Contract] | Result:
+    try:
+        run = ledger.get_run(ws.db, run_id)
+    except LookupError as exc:
+        return Result(INPUT_ERROR, [str(exc)])
+    try:
+        return run, contract_for(run)
+    except (ContractNotFound, ContractChanged) as exc:
+        return Result(OPERATIONAL, [f"run {run_id}: {exc}"], run_id)
+
+
 def _recheck(ws: Workspace, contract: Contract, run: ledger.Run) -> list[str]:
     detail = _ready_detail(ws, run.run_id)
     return ingest.check_ready(
@@ -352,11 +453,10 @@ def _recheck(ws: Workspace, contract: Contract, run: ledger.Run) -> list[str]:
 
 
 def resume(ws: Workspace, run_id: str, *, max_rows: int | None = None) -> Result:
-    contract = load_contract()
-    try:
-        run = ledger.get_run(ws.db, run_id)
-    except LookupError as exc:
-        return Result(INPUT_ERROR, [str(exc)])
+    found = _run_and_contract(ws, run_id)
+    if isinstance(found, Result):
+        return found
+    run, contract = found
     if run.stage in ledger.RETRYABLE:
         retained = ws.retained(run)
         try:
@@ -393,40 +493,71 @@ def resume(ws: Workspace, run_id: str, *, max_rows: int | None = None) -> Result
             [f"run {run_id} is no longer evaluable: {p}" for p in problems],
             run_id,
         )
-    result = evaluate_and_publish(ws, contract, run, max_rows)
+    result = evaluate(ws, contract, run, max_rows, mode=AUTO)
     result.lines.insert(0, f"resumed run {run_id}")
     return result
 
 
 def reevaluate(ws: Workspace, run_id: str, *, max_rows: int | None = None) -> Result:
-    """Append a new evaluation of a ready candidate; earlier ones are kept as they are."""
-    contract = load_contract()
-    try:
-        run = ledger.get_run(ws.db, run_id)
-    except LookupError as exc:
-        return Result(INPUT_ERROR, [str(exc)])
-    if run.stage != "ready":
-        return Result(INPUT_ERROR, [f"run {run_id} is {run.stage}; only ready runs re-evaluate"])
-    problems = _recheck(ws, contract, run)
-    if problems:
-        return Result(OPERATIONAL, [f"run {run_id}: {p}" for p in problems], run_id)
-    result = evaluate_and_publish(ws, contract, run, max_rows)
+    """Append a new evaluation of a ready candidate. It never publishes.
+
+    Earlier evaluations are kept as they are, so the same retained data can be
+    compared under different policies or dependency sets.
+    """
+    found = _ready(ws, run_id)
+    if isinstance(found, Result):
+        return found
+    run, contract = found
+    result = evaluate(ws, contract, run, max_rows, mode=RECORD)
     result.lines.insert(0, f"re-evaluated run {run_id}")
     return result
 
 
+def promote(ws: Workspace, run_id: str, reason: str) -> Result:
+    """Publish a ready run on purpose, after gating it again in the same transaction.
+
+    Unlike `run` and `resume`, it does not require the run's base publication
+    to still be active: the operator is choosing to replace whatever is.
+    """
+    found = _ready(ws, run_id)
+    if isinstance(found, Result):
+        return found
+    run, contract = found
+    current = ledger.active(ws.db, contract.dataset_group)
+    if current is not None and current[0] == run_id:
+        return Result(INPUT_ERROR, [f"run {run_id} is already the active publication"], run_id)
+    result = evaluate(ws, contract, run, None, mode=PROMOTE, reason=reason)
+    result.lines.insert(0, f"promoting run {run_id}: {reason}")
+    return result
+
+
+def _ready(ws: Workspace, run_id: str) -> tuple[ledger.Run, Contract] | Result:
+    found = _run_and_contract(ws, run_id)
+    if isinstance(found, Result):
+        return found
+    run, contract = found
+    if run.stage != "ready":
+        return Result(INPUT_ERROR, [f"run {run_id} is {run.stage}; only ready runs evaluate"])
+    problems = _recheck(ws, contract, run)
+    if problems:
+        return Result(OPERATIONAL, [f"run {run_id}: {p}" for p in problems], run_id)
+    return run, contract
+
+
 def rollback(ws: Workspace, event_id: str, reason: str) -> Result:
     """Republish the candidate of an earlier accepted publication, with an audit event."""
-    contract = load_contract()
     target = ledger.publication(ws.db, event_id)
     if target is None:
         return Result(INPUT_ERROR, [f"no publication {event_id}"])
+    found = _run_and_contract(ws, target["target_run_id"])
+    if isinstance(found, Result):
+        return found
+    run, contract = found
     current = ledger.active(ws.db, contract.dataset_group)
     if current is not None and current[0] == target["target_run_id"]:
         return Result(
             INPUT_ERROR, [f"run {target['target_run_id']} is already the active publication"]
         )
-    run = ledger.get_run(ws.db, target["target_run_id"])
     problems = _recheck(ws, contract, run)
     if problems:
         return Result(
@@ -449,14 +580,14 @@ def rollback(ws: Workspace, event_id: str, reason: str) -> Result:
         conn.commit()
     except Exception as exc:
         conn.rollback()
-        return Result(OPERATIONAL, [f"rollback failed: {exc!r}", *_published(ws)])
+        return Result(OPERATIONAL, [f"rollback failed: {exc!r}", *_published(ws, contract)])
     return Result(
         DONE,
         [
             f"rolled back to run {run.run_id} (publication {event_id}) as event {new_event}",
             f"  reason: {reason}",
             "  the verdict shown for it is the one recorded when it was first accepted",
-            *_published(ws),
+            *_published(ws, contract),
         ],
         run.run_id,
         new_event,
@@ -466,8 +597,8 @@ def rollback(ws: Workspace, event_id: str, reason: str) -> Result:
 # -- reporting ---------------------------------------------------------------
 
 
-def _published(ws: Workspace) -> list[str]:
-    current = ledger.active(ws.db, load_contract().dataset_group)
+def _published(ws: Workspace, contract: Contract) -> list[str]:
+    current = ledger.active(ws.db, contract.dataset_group)
     if current is None:
         return ["published: nothing has been published yet"]
     return [f"published: run {current[0]} (event {current[1]})"]
@@ -534,22 +665,29 @@ def describe(ws: Workspace, contract: Contract, run: ledger.Run) -> Result:
             lines.append(f"  note: {note}")
         if outcome == OPERATIONAL:
             lines.append(f"  error: {(latest.get('detail') or {}).get('error')}")
-    lines += [f"outcome: {outcome}", *_published(ws)]
-    return Result(outcome, lines, run.run_id)
+    lines.append(f"outcome: {outcome}")
+    publication = latest.get("publication") if latest else None
+    if latest is not None and outcome != OPERATIONAL:
+        lines.append(_publication_line(publication))
+    lines += _published(ws, contract)
+    # A pre-0.1.1 evaluation stored the stale conflict as its outcome.
+    exit_as = STALE if publication == STALE else outcome
+    return Result(exit_as, lines, run.run_id)
 
 
 def status(ws: Workspace) -> Result:
-    contract = load_contract()
-    lines = _published(ws)
+    contract = load_contract(DEFAULT_VERSION)
+    lines = _published(ws, contract)
     runs = ledger.all_runs(ws.db)
     if runs:
         lines.append("recent runs:")
     for run in runs:
         latest = ledger.latest_evaluation(ws.db, run.run_id)
         outcome = latest["outcome"] if latest else "-"
+        publication = (latest.get("publication") if latest else None) or "-"
         lines.append(
-            f"  {run.run_id}  batch {run.source_batch_id:<12} stage {run.stage:<11} "
-            f"outcome {outcome}"
+            f"  {run.run_id}  batch {run.source_batch_id:<12} v{run.contract_version} "
+            f"stage {run.stage:<11} outcome {outcome:<12} publication {publication}"
         )
     events = ledger.publications(ws.db, contract.dataset_group)
     if events:
@@ -587,7 +725,10 @@ def export_evaluation(ws: Workspace, run_id: str, evaluation_id: str) -> Path:
     decision = {k: v for k, v in record.items() if k != "reports"}
     decision["created_at"] = str(decision["created_at"])
     _write_atomic(out / "decision.json", json.dumps(decision, indent=2, sort_keys=True) + "\n")
-    summary = format_evidence(record) + [f"outcome: {record['outcome']}"]
+    summary = format_evidence(record) + [
+        f"outcome: {record['outcome']}",
+        _publication_line(record.get("publication")),
+    ]
     _write_atomic(out / "summary.txt", "\n".join(summary) + "\n")
     return out
 

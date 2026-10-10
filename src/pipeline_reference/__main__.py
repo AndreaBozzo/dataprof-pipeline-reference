@@ -15,15 +15,17 @@ from pathlib import Path
 import yaml
 
 from . import scenarios
-from .contract import load_contract
-from .source import write_snapshot
+from .contract import DEFAULT_VERSION, load_contract
+from .source import read_manifest, verify, write_snapshot
 from .workflow import (
     ACCEPTED,
     REJECTED,
     Result,
     Workspace,
     WorkspaceLocked,
+    describe_error,
     export,
+    promote,
     reevaluate,
     resume,
     rollback,
@@ -54,7 +56,8 @@ def generate(
     write_snapshot(
         out,
         rows,
-        load_contract(),
+        # The fixture generator writes the columns of contract v1.
+        load_contract(DEFAULT_VERSION),
         batch_id,
         generator={
             "name": "pipeline_reference.scenarios",
@@ -72,7 +75,7 @@ def generate(
 def _published_summary(ws: Workspace) -> tuple[str | None, list[tuple]]:
     from . import ledger
 
-    current = ledger.active(ws.db, load_contract().dataset_group)
+    current = ledger.active(ws.db, load_contract(DEFAULT_VERSION).dataset_group)
     if current is None:
         return None, []
     rows = ws.db.execute(
@@ -127,18 +130,31 @@ def demo(workspace: Path) -> int:
     return 0 if seen_ok else 1
 
 
-def bootstrap_contract() -> int:
+def bootstrap_contract(version: int, fixture: Path | None) -> int:
+    """Regenerate the stored dlt schema of one contract version.
+
+    The generated fixture has contract v1's columns; any other version needs a
+    known-good snapshot of its own, given as ``fixture``.
+    """
     from .ingest import bootstrap_schema
 
-    contract = load_contract()
-    with tempfile.TemporaryDirectory() as tmp:
-        snapshot = write_snapshot(
-            Path(tmp),
-            scenarios.build("healthy", customers=50, orders=200),
-            contract,
-            "bootstrap",
-        )
+    contract = load_contract(version)
+    if fixture is not None:
+        snapshot = read_manifest(fixture, contract)
+        verify(snapshot)
         schema = bootstrap_schema(contract, snapshot)
+    elif version != DEFAULT_VERSION:
+        print(f"contract v{version} needs --fixture: the generator writes v1 columns")
+        return OPERATIONAL_EXIT
+    else:
+        with tempfile.TemporaryDirectory() as tmp:
+            snapshot = write_snapshot(
+                Path(tmp),
+                scenarios.build("healthy", customers=50, orders=200),
+                contract,
+                "bootstrap",
+            )
+            schema = bootstrap_schema(contract, snapshot)
     contract.schema_path.write_text(
         yaml.safe_dump(schema, sort_keys=False, allow_unicode=True),
         encoding="utf-8",
@@ -148,8 +164,16 @@ def bootstrap_contract() -> int:
     return 0
 
 
+class _Parser(argparse.ArgumentParser):
+    """Usage errors exit 3: argparse's own 2 means inconclusive here."""
+
+    def error(self, message: str):  # type: ignore[override]
+        self.print_usage(sys.stderr)
+        self.exit(OPERATIONAL_EXIT, f"{self.prog}: error: {message}\n")
+
+
 def main(argv: Sequence[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="python -m pipeline_reference")
+    parser = _Parser(prog="python -m pipeline_reference")
     sub = parser.add_subparsers(dest="command", required=True)
 
     def with_ws(p: argparse.ArgumentParser) -> argparse.ArgumentParser:
@@ -172,9 +196,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     p = with_ws(sub.add_parser("resume", help="continue an interrupted run"))
     p.add_argument("run_id")
     with_cap(p)
-    p = with_ws(sub.add_parser("reevaluate", help="append a new evaluation of a ready run"))
+    p = with_ws(
+        sub.add_parser("reevaluate", help="append a new evaluation of a ready run; never publishes")
+    )
     p.add_argument("run_id")
     with_cap(p)
+    p = with_ws(sub.add_parser("promote", help="gate a ready run again and publish it on purpose"))
+    p.add_argument("run_id")
+    p.add_argument("--reason", required=True)
     p = with_ws(sub.add_parser("rollback", help="republish an earlier accepted publication"))
     p.add_argument("publication_id")
     p.add_argument("--reason", required=True)
@@ -188,7 +217,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     p.add_argument("--customers", type=int, default=1_000)
     p.add_argument("--orders", type=int, default=10_000)
     p.add_argument("--repairs", default=None, help="batch ID this snapshot repairs")
-    sub.add_parser("bootstrap-contract", help="maintainer: regenerate the stored dlt schema")
+    p = sub.add_parser("bootstrap-contract", help="maintainer: regenerate the stored dlt schema")
+    p.add_argument("--version", type=int, default=DEFAULT_VERSION, dest="contract_version")
+    p.add_argument("--fixture", type=Path, default=None, help="known-good snapshot to load")
 
     args = parser.parse_args(argv)
     try:
@@ -205,7 +236,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"wrote {args.out}")
             return 0
         if args.command == "bootstrap-contract":
-            return bootstrap_contract()
+            return bootstrap_contract(args.contract_version, args.fixture)
         if args.command == "demo":
             return demo(args.workspace)
         with Workspace(args.workspace) as ws:
@@ -217,12 +248,19 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return _emit(resume(ws, args.run_id, max_rows=args.profile_max_rows))
             if args.command == "reevaluate":
                 return _emit(reevaluate(ws, args.run_id, max_rows=args.profile_max_rows))
+            if args.command == "promote":
+                return _emit(promote(ws, args.run_id, args.reason))
             if args.command == "rollback":
                 return _emit(rollback(ws, args.publication_id, args.reason))
             if args.command == "export":
                 return _emit(export(ws, args.run_id))
     except WorkspaceLocked as exc:
         print(f"error: {exc}", file=sys.stderr)
+        return OPERATIONAL_EXIT
+    except Exception as exc:
+        # An unexpected failure is operational. Python's own exit status for an
+        # uncaught exception is 1, which here means the data was rejected.
+        print(f"operational error: {describe_error(exc)}", file=sys.stderr)
         return OPERATIONAL_EXIT
     parser.error(f"unknown command {args.command}")
     return OPERATIONAL_EXIT

@@ -23,7 +23,7 @@
     }
   },
   "sql": {
-    "min_rows": {"customers": 1, "orders": 1},
+    "min_rows": {"customers": 100, "orders": 1000},
     "currencies": ["EUR", "GBP", "USD"]
   }
 }

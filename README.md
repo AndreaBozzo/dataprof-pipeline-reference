@@ -58,7 +58,8 @@ uv run python -c "import duckdb; print(duckdb.connect('.runs/demo/reference.duck
 | `run --snapshot DIR` | load, gate, publish if accepted |
 | `status` | active publication, runs, events |
 | `resume RUN_ID` | continue an interrupted run |
-| `reevaluate RUN_ID` | new evaluation under the current policy and dependencies |
+| `reevaluate RUN_ID` | new evaluation under the current policy and dependencies; never publishes |
+| `promote RUN_ID --reason TEXT` | gate a ready run again and publish it on purpose |
 | `rollback PUBLICATION_ID --reason TEXT` | republish an earlier accepted batch |
 | `export RUN_ID` | rewrite report files from the ledger |
 | `generate --batch-id ID --out DIR [--scenario NAME]` | write a fixture snapshot |

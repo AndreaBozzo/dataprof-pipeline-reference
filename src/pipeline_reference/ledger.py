@@ -15,7 +15,7 @@ from typing import Any
 
 import duckdb
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 MIGRATIONS: dict[int, list[str]] = {
     1: [
@@ -79,6 +79,17 @@ MIGRATIONS: dict[int, list[str]] = {
         )""",
         "CREATE TABLE control.schema_version (version INTEGER NOT NULL, applied_at TIMESTAMPTZ)",
     ],
+    # 0.1.1: the quality outcome and the publication decision are separate
+    # facts, and a run records which contract files it was loaded under.
+    # Rows written by version 1 keep NULL here: their outcome column may say
+    # `stale_conflict`, and readers treat that as the old combined value.
+    2: [
+        "ALTER TABLE control.evaluations ADD COLUMN publication VARCHAR",
+        "ALTER TABLE control.evaluations ADD COLUMN columns_digest VARCHAR",
+        "ALTER TABLE control.evaluations ADD COLUMN dlt_schema_digest VARCHAR",
+        "ALTER TABLE control.runs ADD COLUMN columns_digest VARCHAR",
+        "ALTER TABLE control.runs ADD COLUMN dlt_schema_digest VARCHAR",
+    ],
 }
 
 # Stages a run can be left in when the process stops before ready. A retry of
@@ -131,12 +142,17 @@ class Run:
     candidate_schema: str
     base_event_id: str | None
     manifest: dict[str, Any]
+    #: Digests of the contract files the run was loaded under; None on runs
+    #: recorded before 0.1.1.
+    columns_digest: str | None
+    dlt_schema_digest: str | None
     stage: str
 
 
 RUN_COLUMNS = (
     "r.run_id, r.dataset_group, r.source_batch_id, r.source_digest, r.repairs_batch_id, "
-    "r.retry_of, r.contract_version, r.candidate_schema, r.base_event_id, r.manifest"
+    "r.retry_of, r.contract_version, r.candidate_schema, r.base_event_id, r.manifest, "
+    "r.columns_digest, r.dlt_schema_digest"
 )
 LATEST_STAGE = (
     "(SELECT stage FROM control.run_stages s WHERE s.run_id = r.run_id ORDER BY seq DESC LIMIT 1)"
@@ -150,6 +166,8 @@ def create_run(
     manifest: dict[str, Any],
     source_digest: str,
     contract_version: int,
+    columns_digest: str,
+    dlt_schema_digest: str | None,
     versions: dict[str, Any],
     retry_of: str | None = None,
 ) -> Run:
@@ -160,7 +178,10 @@ def create_run(
     try:
         base = active(conn, dataset_group)
         conn.execute(
-            "INSERT INTO control.runs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO control.runs (run_id, dataset_group, source_batch_id, source_digest, "
+            "repairs_batch_id, retry_of, contract_version, candidate_schema, base_event_id, "
+            "manifest, versions, started_at, columns_digest, dlt_schema_digest) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 run_id,
                 dataset_group,
@@ -174,6 +195,8 @@ def create_run(
                 json.dumps(manifest, sort_keys=True),
                 json.dumps(versions, sort_keys=True),
                 now(),
+                columns_digest,
+                dlt_schema_digest,
             ],
         )
         _stage(conn, run_id, "created", None)
@@ -262,7 +285,8 @@ def insert_evaluation(
         )
     }
     conn.execute(
-        "INSERT INTO control.evaluations VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        f"INSERT INTO control.evaluations ({', '.join(EVALUATION_FIELDS)}) "
+        f"VALUES ({', '.join('?' * len(EVALUATION_FIELDS))})",
         [
             evaluation_id,
             run_id,
@@ -279,6 +303,9 @@ def insert_evaluation(
             encoded["sql_assertions"],
             encoded["detail"],
             json.dumps(fields["versions"], sort_keys=True),
+            fields.get("publication"),
+            fields.get("columns_digest"),
+            fields.get("dlt_schema_digest"),
         ],
     )
     return evaluation_id
@@ -300,8 +327,22 @@ EVALUATION_FIELDS = (
     "sql_assertions",
     "detail",
     "versions",
+    #: What happened to publication: published, stale_conflict,
+    #: not_requested, already_active or not_eligible.
+    "publication",
+    "columns_digest",
+    "dlt_schema_digest",
 )
-JSON_FIELDS = set(EVALUATION_FIELDS[7:])
+JSON_FIELDS = {
+    "policy",
+    "projections",
+    "arrow_schemas",
+    "reports",
+    "gates",
+    "sql_assertions",
+    "detail",
+    "versions",
+}
 
 
 def evaluations(conn: duckdb.DuckDBPyConnection, run_id: str) -> list[dict[str, Any]]:

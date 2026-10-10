@@ -63,10 +63,13 @@ def test_resumed_old_run_does_not_overwrite_newer_publication(ws_path, snapshots
     resumed = cli(ws_path, "resume", old.run_id)
 
     assert resumed.returncode == 3, resumed.stdout
-    assert "outcome: stale_conflict" in resumed.stdout
+    assert "outcome: accepted" in resumed.stdout
+    assert "publication: not published: a newer publication" in resumed.stdout
     with Workspace(ws_path) as ws:
         assert published_state(ws) == before
         assert ledger.active(ws.db, "shop")[0] == newer.run_id
+        evaluation = ledger.latest_evaluation(ws.db, old.run_id)
+        assert (evaluation["outcome"], evaluation["publication"]) == ("accepted", "stale_conflict")
 
 
 def test_rollback_moves_views_and_pointer_together(ws, snapshots):

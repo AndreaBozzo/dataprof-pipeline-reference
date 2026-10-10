@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import random
+import re
 import shutil
 import stat
 from collections.abc import Callable, Iterator
@@ -132,7 +133,10 @@ def batch_digest(manifest: dict[str, Any]) -> str:
     return hashlib.sha256("\n".join(lines).encode("utf-8")).hexdigest()
 
 
-def read_manifest(directory: Path, contract: Contract) -> Snapshot:
+SHA256 = re.compile(r"^[0-9a-f]{64}$")
+
+
+def _load_manifest(directory: Path) -> tuple[Path, dict[str, Any]]:
     path = directory / MANIFEST
     if not path.is_file():
         raise InputError(f"{directory}: no {MANIFEST}")
@@ -140,31 +144,70 @@ def read_manifest(directory: Path, contract: Contract) -> Snapshot:
         manifest = json.loads(path.read_text(encoding="utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise InputError(f"{path}: not a JSON manifest: {exc}") from exc
-    for key in ("source_batch_id", "dataset_group", "contract_version", "files"):
-        if key not in manifest:
-            raise InputError(f"{path}: missing {key!r}")
-    if not isinstance(manifest["source_batch_id"], str) or not manifest["source_batch_id"]:
-        raise InputError(f"{path}: source_batch_id must be a non-empty string")
-    if manifest["dataset_group"] != contract.dataset_group:
+    if not isinstance(manifest, dict):
+        raise InputError(f"{path}: the manifest must be a JSON object")
+    return path, manifest
+
+
+def _whole(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def manifest_contract_version(directory: Path) -> int:
+    """The contract version a snapshot declares, read before its contract is loaded."""
+    path, manifest = _load_manifest(directory)
+    version = manifest.get("contract_version")
+    if not _whole(version) or version < 1:
+        raise InputError(f"{path}: contract_version must be a positive whole number")
+    return version
+
+
+def read_manifest(directory: Path, contract: Contract) -> Snapshot:
+    """Validate the whole manifest; every problem is an InputError naming the field."""
+    path, manifest = _load_manifest(directory)
+    if manifest.get("manifest_version") != MANIFEST_VERSION or not _whole(
+        manifest.get("manifest_version")
+    ):
         raise InputError(
-            f"{path}: dataset group {manifest['dataset_group']!r}, "
+            f"{path}: manifest_version must be {MANIFEST_VERSION}, "
+            f"got {manifest.get('manifest_version')!r}"
+        )
+    batch = manifest.get("source_batch_id")
+    if not isinstance(batch, str) or not batch:
+        raise InputError(f"{path}: source_batch_id must be a non-empty string")
+    if manifest.get("dataset_group") != contract.dataset_group:
+        raise InputError(
+            f"{path}: dataset group {manifest.get('dataset_group')!r}, "
             f"contract expects {contract.dataset_group!r}"
         )
-    if manifest["contract_version"] != contract.version:
+    if manifest.get("contract_version") != contract.version:
         raise InputError(
-            f"{path}: contract version {manifest['contract_version']!r}, "
-            f"runner has {contract.version}"
+            f"{path}: contract version {manifest.get('contract_version')!r}, "
+            f"runner loaded {contract.version}"
         )
-    expected = set(contract.tables)
-    named = set(manifest["files"])
-    if named != expected:
-        raise InputError(f"{path}: files for {sorted(named)}, contract expects {sorted(expected)}")
-    for table, entry in manifest["files"].items():
+    repairs = manifest.get("repairs_batch_id")
+    if repairs is not None and (not isinstance(repairs, str) or not repairs):
+        raise InputError(f"{path}: repairs_batch_id must be a non-empty string or null")
+    if manifest.get("generator") is not None and not isinstance(manifest["generator"], dict):
+        raise InputError(f"{path}: generator must be an object or null")
+    files = manifest.get("files")
+    if not isinstance(files, dict):
+        raise InputError(f"{path}: files must be an object keyed by table")
+    if set(files) != set(contract.tables):
+        raise InputError(
+            f"{path}: files for {sorted(files)}, contract expects {sorted(contract.tables)}"
+        )
+    for table, entry in files.items():
+        if not isinstance(entry, dict):
+            raise InputError(f"{path}: files.{table} must be an object")
         if entry.get("path") != contract.tables[table].file:
             raise InputError(
-                f"{path}: {table} file is {entry.get('path')!r}, "
+                f"{path}: files.{table}.path is {entry.get('path')!r}, "
                 f"contract expects {contract.tables[table].file!r}"
             )
+        sha = entry.get("sha256")
+        if not isinstance(sha, str) or not SHA256.match(sha):
+            raise InputError(f"{path}: files.{table}.sha256 must be 64 lowercase hex digits")
     return Snapshot(directory, manifest)
 
 
