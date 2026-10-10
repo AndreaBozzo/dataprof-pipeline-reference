@@ -12,19 +12,23 @@ the evidence and the smallest upstream change, and the issue once filed.
 | G3 | No row-count check. An empty table fails only through `require_metrics`; a truncated batch passes. | `volume.*` assertions in `evaluate.py` | `check(min_rows=...)` (AndreaBozzo/dataprof#905) |
 | G4 | The report drops the source type: Arrow `decimal128(12,2)` is reported as `Float`, `timestamp[us, tz=UTC]` as `Date`. | `arrow_schemas` stored beside each report in `control.evaluations` | Record the source physical type per column; would allow a column and type contract check (AndreaBozzo/dataprof#906) |
 | G5 | A policy is keyword arguments; the reference serializes and digests it itself. | `Contract.policy_digest` | A policy object with load, serialize and digest; overlaps AndreaBozzo/dataprof#883 and AndreaBozzo/dataprof#849, not filed |
-| G6 | Value-domain rules (`amount >= 0`, currency set) are SQL. Open question whether they belong in a profiler policy. | `range.*`, `domain.*` assertions | See below |
+| G6 | Value-domain rules (`amount >= 0`, currency set) are SQL. | `range.*`, `domain.*` assertions | Bounds: AndreaBozzo/dataprof#908. Sets: stay SQL, see below |
 | G7 | A development build reports the last release's version, so evidence from it cannot be told apart from the release's. | `versions` in `control.evaluations`; `tests/test_compat.py` | Expose build identity (commit) in the module and the report (AndreaBozzo/dataprof#907) |
 
-### G6: notes so far
+### G6: bounds yes, sets no
 
-- A range bound can be decided from statistics the report already holds
-  (`stats.Numeric.min`), under the existing full-source and sampling rules.
-  That fits a profile-derived check.
-- Set membership needs the distinct values, which the report does not carry
-  (text `most_frequent` is left empty in 0.12.0, AndreaBozzo/dataprof#758). That is a different
-  capability.
-- Still to gather: how often the two shapes appear in real pipelines, and how
-  other profiling and validation tools draw the line.
+- Bounds fit a profile-level check: a full scan reports exact `min` and `max`
+  (`amount min=-1.0` on a planted negative), and a partial scan can still
+  witness a violation. whylogs gates the same way (`greater_than_number`,
+  `is_in_range` on a profile).
+- Sets do not: the report holds no values, and a profile-derived set check is
+  unsound at high cardinality. whylogs 1.6.4
+  `frequent_strings_in_reference_set` passed with one invalid value among
+  5,000 distinct valid ones; it caught the same value among 3. The sound
+  tools test every row: dbt `accepted_values`, Soda `valid values`, Deequ
+  `isContainedIn`.
+- dataprof's own line (AndreaBozzo/dataprof#841): threshold policies over
+  profile metrics, not arbitrary expectations.
 
 ## dlt
 
