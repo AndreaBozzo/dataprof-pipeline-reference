@@ -34,7 +34,7 @@ the evidence and the smallest upstream change, and the issue once filed.
 
 | ID | Gap | Evidence | Possible change |
 | --- | --- | --- | --- |
-| D1 | `schema_contract="freeze"` on a new dataset rejects tables the pipeline schema already knows; a stored schema must be imported per run. | `spikes/02_dlt_contracts.py` | dlt-hub/dlt#4539 |
+| D1 | `schema_contract="freeze"` on a new dataset rejects tables the pipeline schema already knows; a stored schema must be imported per run. | `spikes/02_dlt_contracts.py` | By design: a new dataset resets the pipeline schema; the documented route is `import_schema_path` (dlt-hub/dlt#4539) |
 | D2 | `pipeline.run()` changes `search_path` on a connection the caller passed in. `main` still resolves, so the risk is a same-named table being shadowed. | `spikes/01_route_and_transactions.py` | Not filed; low impact |
 | D3 | A dataset named like the DuckDB catalog (the database file stem) fails with an ambiguous reference. dlt logs a warning first; the error then suggests a concurrent-pipeline retry. | bootstrap in `ingest.py` | Known: dlt-hub/dlt#176 and the warning |
 | D4 | Without a contract, an uncoercible value loads as NULL plus a `__v_text` variant column. Documented behavior; listed because it hides type errors from a downstream null check. | `spikes/02_dlt_contracts.py` | None; the reference freezes the schema |
