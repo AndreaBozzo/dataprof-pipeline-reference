@@ -13,6 +13,7 @@ from importlib import metadata
 from pathlib import Path
 from typing import Any
 
+import dataprof
 import duckdb
 import portalocker
 
@@ -81,6 +82,8 @@ def versions() -> dict[str, Any]:
     found: dict[str, Any] = {"python": platform.python_version()}
     for name in ("dataprof", "dlt", "duckdb", "pyarrow", "portalocker"):
         found[name] = metadata.version(name)
+    build = dataprof.capabilities()
+    found["dataprof_build"] = {"commit": build.commit, "dirty": build.dirty}
     found["pipeline_reference"] = metadata.version("dataprof-pipeline-reference")
     found["commit"] = _commit()
     return found

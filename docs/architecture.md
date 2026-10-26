@@ -29,10 +29,11 @@ created -> loading -> ready -> evaluated (accepted | rejected | inconclusive | o
 
 ## Gates
 
-- dataprof: per-column null limits and a required completeness assessment,
+- dataprof: row floor (`min_rows`), per-column null limits and a required
+  completeness assessment,
   `scope="full_source"`, on the explicit business projection
   (`contracts/v1/policy.json`).
-- SQL: volume floor (`min_rows`), business-key uniqueness, amount range,
+- SQL: business-key uniqueness, amount range,
   currency set, orders to customers reference.
 - Outcome: any failed check rejects; otherwise any inconclusive check makes
   it inconclusive; otherwise accepted. An unknown verdict is an error.

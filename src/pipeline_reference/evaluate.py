@@ -113,16 +113,6 @@ def _assertions(contract: Contract, schema: str) -> list[dict[str, Any]]:
         key = identifier(spec.key)
         found.append(
             {
-                "id": f"volume.{table}",
-                "description": f"{table} has at least the minimum rows",
-                "sql": f"SELECT count(*) FROM {t}",
-                "params": [],
-                "comparator": ">=",
-                "threshold": sql_policy["min_rows"][table],
-            }
-        )
-        found.append(
-            {
                 "id": f"unique.{table}.{spec.key}",
                 "description": f"{spec.key} identifies one {table} row",
                 "sql": f"SELECT count({key}) - count(DISTINCT {key}) FROM {t}",

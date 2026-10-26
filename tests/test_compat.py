@@ -41,13 +41,13 @@ def test_null_markers(conn):
     )
     report = dataprof.profile(conn.sql("SELECT customer_id FROM t"))
     verdict = report.check(max_null_percentage={"customer_id": 2.0}).verdict
-    # 0.12.0 counts "N/A" as a value (#813); master counts it as null (#847).
-    _check(verdict, {"0.12.0": "pass"}, "AndreaBozzo/dataprof#813")
+    # 0.12.0 counts "N/A" as a value (#813); 0.13.0 counts it as null (#847).
+    _check(verdict, {"0.12.0": "pass", "0.13.0": "fail"}, "AndreaBozzo/dataprof#813")
 
 
 def test_zero_padded_codes(conn):
     conn.execute("CREATE TABLE t AS SELECT lpad(i::VARCHAR, 6, '0') AS code FROM range(500) r(i)")
     report = dataprof.profile(conn.sql("SELECT code FROM t"))
     data_type = json.loads(report.to_json())["column_profiles"][0]["data_type"]
-    # 0.12.0 types zero-padded codes as integers (#814); master keeps them text (#868).
-    _check(data_type, {"0.12.0": "Integer"}, "AndreaBozzo/dataprof#814")
+    # 0.12.0 types zero-padded codes as integers (#814); 0.13.0 keeps them text (#868).
+    _check(data_type, {"0.12.0": "Integer", "0.13.0": "String"}, "AndreaBozzo/dataprof#814")

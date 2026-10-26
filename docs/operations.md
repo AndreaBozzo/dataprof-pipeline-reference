@@ -21,8 +21,8 @@ old one.
 
 ## Volume floor
 
-`sql.min_rows` in the policy rejects a snapshot below 100 customers or 1,000
-orders. It catches an extract that stopped early (`truncated_snapshot`
+`min_rows` in each table's dataprof check rejects a snapshot below 100
+customers or 1,000 orders. It catches an extract that stopped early (`truncated_snapshot`
 scenario). Set it from the volume your source delivers; it is absolute, not
 relative to the last publication.
 

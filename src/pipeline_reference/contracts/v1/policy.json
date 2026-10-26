@@ -1,8 +1,9 @@
 {
-  "policy_version": 1,
+  "policy_version": 2,
   "dataprof": {
     "customers": {
       "check": {
+        "min_rows": 100,
         "max_null_percentage": {"customer_id": 0, "country_code": 0, "updated_at": 0},
         "require_metrics": ["completeness"],
         "scope": "full_source"
@@ -11,6 +12,7 @@
     },
     "orders": {
       "check": {
+        "min_rows": 1000,
         "max_null_percentage": {"order_id": 0, "customer_id": 2.0, "amount": 0, "currency": 0, "ordered_at": 0},
         "require_metrics": ["completeness"],
         "scope": "full_source"
@@ -23,7 +25,6 @@
     }
   },
   "sql": {
-    "min_rows": {"customers": 100, "orders": 1000},
     "currencies": ["EUR", "GBP", "USD"]
   }
 }

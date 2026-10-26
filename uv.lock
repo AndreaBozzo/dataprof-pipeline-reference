@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = "==3.12.*"
 
 [manifest]
@@ -87,15 +87,15 @@ wheels = [
 
 [[package]]
 name = "dataprof"
-version = "0.12.0"
+version = "0.13.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/51/99/0d933a1f0444e3c4a53977c26d97d0a98878091f82706e7c5a039a4e3247/dataprof-0.12.0.tar.gz", hash = "sha256:54e553e3e2482f67e1cee50a92e5bbe37475e23b6c0d424e1b0b2d4891a3df8f", size = 1125004, upload-time = "2026-09-30T18:53:26.324Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/89/4c/2190afa4a10b2b26ec6754d4e15fb9ceb8099ecad785aecd2d3c405b60a8/dataprof-0.13.0.tar.gz", hash = "sha256:9893cf9f8ebee24a8e687cd4456a7d8746c53e2c7775bb54696951555f60f48a", size = 1294186, upload-time = "2026-10-25T21:30:44.72Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/59/a6/16b6ea97c906b023f2c108756917f241c0bd26c2b324d13307a34cd788e1/dataprof-0.12.0-cp312-cp312-macosx_10_12_x86_64.whl", hash = "sha256:349897d44d226642d38b0af2d1667201ac57ea788e37596f87ad58abf2c91364", size = 7310376, upload-time = "2026-09-30T18:52:49.164Z" },
-    { url = "https://files.pythonhosted.org/packages/9f/b7/9a244781cf56c95ffd5b5f35228b57ff2b775d451d4435e0a3dafb815a11/dataprof-0.12.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:0464ec21d3a430c0786073fa17b7933b7911d8700ed4ea9b835485d6a49a71f6", size = 6783114, upload-time = "2026-09-30T18:52:51.555Z" },
-    { url = "https://files.pythonhosted.org/packages/cf/0b/ce05cc3b6e85d68d2a5c3e85689f3ece59c8e9d0bf9f95d7df233fb0a9b3/dataprof-0.12.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7fb2a2d77419b90c956d1fd0648923572adf7611cc94f9bf7345298fe14dbefe", size = 7698820, upload-time = "2026-09-30T18:52:54.165Z" },
-    { url = "https://files.pythonhosted.org/packages/92/af/fdcacf8700193de75cc3d2316ff599eb44141351e620eba2f0ec937c0290/dataprof-0.12.0-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:f5b3263abb26342b9b8de3451fb746919e8ec558f19d4d2ceefcef319e9b9348", size = 7173108, upload-time = "2026-09-30T18:52:56.912Z" },
-    { url = "https://files.pythonhosted.org/packages/e0/85/6324c9d8ff805488ce7affdf4f29f77ffe9029334efc1915c632f66654d7/dataprof-0.12.0-cp312-cp312-win_amd64.whl", hash = "sha256:946e4a9118b08347fee8df99cba0b74f2212dd6a7ecb9abfd19ac6a3ecf1a523", size = 7927578, upload-time = "2026-09-30T18:52:59.434Z" },
+    { url = "https://files.pythonhosted.org/packages/a0/31/32cee3ecb5629bd840fcbb4938021801c880808c68a46943a7c871f21732/dataprof-0.13.0-cp312-cp312-macosx_10_12_x86_64.whl", hash = "sha256:e0a6cc21b250d4155747c316203ac2910b6d16e42161b6fd7f7318923a47c5bb", size = 7577113, upload-time = "2026-10-25T21:30:07.704Z" },
+    { url = "https://files.pythonhosted.org/packages/94/e0/5e424775021f3f3b035b491a72806bd6667482374ecf88b1eb18805a8fa2/dataprof-0.13.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:b39b9dbd9ac1dd7b0704584a5c1916fded1bfbef6139fdf3f36e38634f1e47f2", size = 7046235, upload-time = "2026-10-25T21:30:09.599Z" },
+    { url = "https://files.pythonhosted.org/packages/91/13/4ffa6550ac64f73d72dcac48d09a9fbc4cb7e85b91186e832a5b0d2f3005/dataprof-0.13.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:87ead3bfbc0d34f51fd508a32bab954dd405dc602f33024f22cf7f4cf7e85af3", size = 8024424, upload-time = "2026-10-25T21:30:11.262Z" },
+    { url = "https://files.pythonhosted.org/packages/92/0e/b6981df88283b2c340f04a1ae60922fc22e0057735b87e996cf5dd1337f0/dataprof-0.13.0-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:c1289a513067b52426ce9f7c576f49550146d65f53a05d072a5713e785925b0b", size = 7448692, upload-time = "2026-10-25T21:30:13.174Z" },
+    { url = "https://files.pythonhosted.org/packages/82/eb/c977a15b81f6af494d76f95e386f76ca37e82540207e419e44cf4277b327/dataprof-0.13.0-cp312-cp312-win_amd64.whl", hash = "sha256:d474614d6f5b87eb6458163c335565df8efbcbec99437ca4de2d3fe205ec30e8", size = 8274497, upload-time = "2026-10-25T21:30:14.874Z" },
 ]
 
 [[package]]
@@ -119,7 +119,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "dataprof", specifier = "==0.12.0" },
+    { name = "dataprof", specifier = "==0.13.0" },
     { name = "dlt", extras = ["duckdb"], specifier = "==1.31.0" },
     { name = "duckdb", specifier = "==1.5.6" },
     { name = "portalocker", specifier = "==4.4.0" },
