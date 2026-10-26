@@ -28,6 +28,7 @@ from .evaluate import (
     Evidence,
     run_gates,
 )
+from .ledger import scalar
 from .source import (
     InputError,
     Snapshot,
@@ -649,10 +650,12 @@ def describe(ws: Workspace, contract: Contract, run: ledger.Run) -> Result:
     lines = [f"run {run.run_id}  batch {run.source_batch_id}  stage {run.stage}"]
     latest = ledger.latest_evaluation(ws.db, run.run_id)
     if run.stage == "blocked":
-        detail = ws.db.execute(
-            "SELECT detail FROM control.run_stages WHERE run_id = ? ORDER BY seq DESC LIMIT 1",
-            [run.run_id],
-        ).fetchone()[0]
+        detail = scalar(
+            ws.db.execute(
+                "SELECT detail FROM control.run_stages WHERE run_id = ? ORDER BY seq DESC LIMIT 1",
+                [run.run_id],
+            )
+        )
         for problem in json.loads(detail).get("problems", []):
             lines.append(f"  blocked: {problem}")
         outcome = REJECTED

@@ -38,7 +38,7 @@ def test_unknown_verdict_never_promotes(ws, snapshots, monkeypatch):
 
     def profile(*args, **kwargs):
         report = real_profile(*args, **kwargs)
-        report.check = lambda **_: Gate()
+        report.check = lambda **_: Gate()  # ty: ignore[invalid-assignment]  # a test double
         return report
 
     monkeypatch.setattr(evaluate.dataprof, "profile", profile)

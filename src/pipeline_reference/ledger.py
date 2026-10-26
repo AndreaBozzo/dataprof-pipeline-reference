@@ -101,19 +101,29 @@ def now() -> datetime:
     return datetime.now(UTC)
 
 
+def scalar(cursor: duckdb.DuckDBPyConnection) -> Any:
+    """The first value of a query that always returns one row, such as an aggregate."""
+    row = cursor.fetchone()
+    if row is None:
+        raise LookupError("the query returned no row")
+    return row[0]
+
+
 def new_id(prefix: str) -> str:
     stamp = now().strftime("%Y%m%dt%H%M%S")
     return f"{prefix}{stamp}_{secrets.token_hex(3)}"
 
 
 def migrate(conn: duckdb.DuckDBPyConnection) -> None:
-    exists = conn.execute(
-        "SELECT count(*) FROM information_schema.tables "
-        "WHERE table_schema = 'control' AND table_name = 'schema_version'"
-    ).fetchone()[0]
+    exists = scalar(
+        conn.execute(
+            "SELECT count(*) FROM information_schema.tables "
+            "WHERE table_schema = 'control' AND table_name = 'schema_version'"
+        )
+    )
     current = 0
     if exists:
-        current = conn.execute("SELECT max(version) FROM control.schema_version").fetchone()[0]
+        current = scalar(conn.execute("SELECT max(version) FROM control.schema_version"))
     if current > SCHEMA_VERSION:
         raise RuntimeError(
             f"workspace ledger is version {current}; this runner knows {SCHEMA_VERSION}"
@@ -208,9 +218,11 @@ def create_run(
 
 
 def _stage(conn: duckdb.DuckDBPyConnection, run_id: str, stage: str, detail: Any) -> None:
-    seq = conn.execute(
-        "SELECT coalesce(max(seq), 0) + 1 FROM control.run_stages WHERE run_id = ?", [run_id]
-    ).fetchone()[0]
+    seq = scalar(
+        conn.execute(
+            "SELECT coalesce(max(seq), 0) + 1 FROM control.run_stages WHERE run_id = ?", [run_id]
+        )
+    )
     conn.execute(
         "INSERT INTO control.run_stages VALUES (?, ?, ?, ?, ?)",
         [run_id, seq, stage, None if detail is None else json.dumps(detail, sort_keys=True), now()],
@@ -269,9 +281,11 @@ def insert_evaluation(
 ) -> str:
     """Append an evaluation; caller owns the transaction."""
     evaluation_id = new_id("e")
-    seq = conn.execute(
-        "SELECT coalesce(max(seq), 0) + 1 FROM control.evaluations WHERE run_id = ?", [run_id]
-    ).fetchone()[0]
+    seq = scalar(
+        conn.execute(
+            "SELECT coalesce(max(seq), 0) + 1 FROM control.evaluations WHERE run_id = ?", [run_id]
+        )
+    )
     encoded = {
         key: (None if fields.get(key) is None else json.dumps(fields[key], sort_keys=True))
         for key in (
@@ -395,7 +409,13 @@ def publications(conn: duckdb.DuckDBPyConnection, group: str) -> list[dict[str, 
         "ORDER BY committed_at, event_id",
         [group],
     ).fetchall()
-    return [publication(conn, row[0]) for row in rows]
+    found = []
+    for (event_id,) in rows:
+        entry = publication(conn, event_id)
+        if entry is None:  # listed from the same table a moment ago
+            raise LookupError(f"publication {event_id} is gone")
+        found.append(entry)
+    return found
 
 
 def events_for_run(conn: duckdb.DuckDBPyConnection, run_id: str) -> list[str]:

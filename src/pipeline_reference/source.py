@@ -19,7 +19,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeGuard
 
 from .contract import Contract
 
@@ -149,7 +149,7 @@ def _load_manifest(directory: Path) -> tuple[Path, dict[str, Any]]:
     return path, manifest
 
 
-def _whole(value: Any) -> bool:
+def _whole(value: Any) -> TypeGuard[int]:
     return isinstance(value, int) and not isinstance(value, bool)
 
 

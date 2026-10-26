@@ -20,6 +20,7 @@ dependencies = [
 dev = [
     "pytest>=8",
     "ruff>=0.15",
+    "ty>=0.0.91",
 ]
 
 [build-system]
@@ -34,6 +35,24 @@ line-length = 100
 target-version = "py312"
 # Spikes are kept as recorded evidence, not maintained code.
 extend-exclude = ["spikes"]
+
+[tool.ty.environment]
+python-version = "3.12"
+
+[tool.ty.src]
+# Spikes are kept as recorded evidence, not maintained code.
+exclude = ["spikes"]
+
+[[tool.ty.overrides]]
+# Tests read a run back through Result.run_id and latest_evaluation(), both Optional
+# because a run can fail before it exists. A None there fails the test at once, so
+# narrowing each of the ~70 sites would add asserts that guard nothing.
+include = ["tests/**"]
+
+[tool.ty.overrides.rules]
+invalid-argument-type = "ignore"
+not-subscriptable = "ignore"
+unsupported-operator = "ignore"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM"]

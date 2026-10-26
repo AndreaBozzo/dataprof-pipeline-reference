@@ -19,6 +19,7 @@ import pyarrow as pa
 
 from . import faults
 from .contract import Contract, digest, identifier
+from .ledger import scalar
 
 VERDICTS = ("pass", "fail", "inconclusive")
 ACCEPTED, REJECTED, INCONCLUSIVE = "accepted", "rejected", "inconclusive"
@@ -161,7 +162,7 @@ def sql_assertions(
 ) -> list[dict[str, Any]]:
     results = []
     for assertion in _assertions(contract, schema):
-        observed = conn.execute(assertion["sql"], assertion["params"]).fetchone()[0]
+        observed = scalar(conn.execute(assertion["sql"], assertion["params"]))
         if assertion["comparator"] == ">=":
             passed = observed >= assertion["threshold"]
         else:

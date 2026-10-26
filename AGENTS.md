@@ -16,6 +16,7 @@
 uv sync --locked
 uv run ruff format --check .
 uv run ruff check .
+uv run ty check
 uv run pytest -q
 uv run python -m pipeline_reference demo --workspace .runs/demo
 ```

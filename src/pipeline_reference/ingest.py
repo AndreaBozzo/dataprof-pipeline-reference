@@ -226,4 +226,4 @@ def bootstrap_schema(contract: Contract, fixture: Snapshot) -> dict[str, Any]:
             shutil.rmtree(Path(tmp) / "dlt", ignore_errors=True)
     if keys.absent():
         raise RuntimeError(f"bootstrap fixture lacks keys: {keys.absent()}")
-    return schema
+    return dict(schema)

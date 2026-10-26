@@ -110,6 +110,8 @@ def demo(workspace: Path) -> int:
             _emit(result)
             target, rows = _published_summary(ws)
             if result.outcome == ACCEPTED:
+                if result.run_id is None:
+                    raise RuntimeError(f"{batch}: accepted without a run")
                 published_runs.append(result.run_id)
             expected_target = published_runs[-1] if published_runs else None
             print("published.orders by currency:")
