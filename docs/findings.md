@@ -14,7 +14,7 @@ the evidence and the smallest upstream change, and the issue once filed.
 | G5 | A policy is keyword arguments; the reference serializes and digests it itself. | `Contract.policy_digest` | A policy object with load, serialize and digest; overlaps AndreaBozzo/dataprof#883 and AndreaBozzo/dataprof#849, not filed |
 | G6 | Value-domain rules (`amount >= 0`, currency set) are SQL. | `range.*`, `domain.*` assertions | Bounds: AndreaBozzo/dataprof#908. Sets: stay SQL, see below |
 | G7 | A development build reports the last release's version, so evidence from it cannot be told apart from the release's. | `versions` in `control.evaluations`; `tests/test_compat.py` | Shipped in 0.13.0: `generator` in every report and `capabilities().commit` (AndreaBozzo/dataprof#907); runs record it as `versions.dataprof_build` |
-| G8 | Since 0.13.0 an absolute rule decides on the two-decimal value a check shows (AndreaBozzo/dataprof#1090). A 0% null limit passes a null rate below 0.005%, so the 0% limits on keys are exact only up to 20,000 rows. | `max_null_percentage` 0 in `contracts/v1/policy.json`; the release notes advise reading `null_count == 0` | An exact count rule in `check()`, such as `max_null_count` (AndreaBozzo/dataprof#1119) |
+| G8 | Since 0.13.0 an absolute rule decides on the two-decimal value a check shows (AndreaBozzo/dataprof#1090). A 0% null limit passes a null rate below 0.005%, so the 0% limits on keys are exact only up to 20,000 rows. | `max_null_percentage` 0 in `contracts/v1/policy.json`; the release notes advise reading `null_count == 0` | Shipped in 0.13.1 as `check(max_null_count=...)` (AndreaBozzo/dataprof#1119); not adopted yet, the policy still uses 0% `max_null_percentage` limits |
 
 ### G6: bounds yes, sets no
 

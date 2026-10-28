@@ -87,15 +87,15 @@ wheels = [
 
 [[package]]
 name = "dataprof"
-version = "0.13.0"
+version = "0.13.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/89/4c/2190afa4a10b2b26ec6754d4e15fb9ceb8099ecad785aecd2d3c405b60a8/dataprof-0.13.0.tar.gz", hash = "sha256:9893cf9f8ebee24a8e687cd4456a7d8746c53e2c7775bb54696951555f60f48a", size = 1294186, upload-time = "2026-10-25T21:30:44.72Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6f/1c/94dad7bb5e7cb38f43d2c501d32429e90339531e9284d20a4ad9e5eddd27/dataprof-0.13.1.tar.gz", hash = "sha256:51e1746eaf3fbfa24f88d9914fd81a2477aef12027f4a0c06ca77b96582a35a2", size = 1308904, upload-time = "2026-10-28T16:54:51.657Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a0/31/32cee3ecb5629bd840fcbb4938021801c880808c68a46943a7c871f21732/dataprof-0.13.0-cp312-cp312-macosx_10_12_x86_64.whl", hash = "sha256:e0a6cc21b250d4155747c316203ac2910b6d16e42161b6fd7f7318923a47c5bb", size = 7577113, upload-time = "2026-10-25T21:30:07.704Z" },
-    { url = "https://files.pythonhosted.org/packages/94/e0/5e424775021f3f3b035b491a72806bd6667482374ecf88b1eb18805a8fa2/dataprof-0.13.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:b39b9dbd9ac1dd7b0704584a5c1916fded1bfbef6139fdf3f36e38634f1e47f2", size = 7046235, upload-time = "2026-10-25T21:30:09.599Z" },
-    { url = "https://files.pythonhosted.org/packages/91/13/4ffa6550ac64f73d72dcac48d09a9fbc4cb7e85b91186e832a5b0d2f3005/dataprof-0.13.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:87ead3bfbc0d34f51fd508a32bab954dd405dc602f33024f22cf7f4cf7e85af3", size = 8024424, upload-time = "2026-10-25T21:30:11.262Z" },
-    { url = "https://files.pythonhosted.org/packages/92/0e/b6981df88283b2c340f04a1ae60922fc22e0057735b87e996cf5dd1337f0/dataprof-0.13.0-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:c1289a513067b52426ce9f7c576f49550146d65f53a05d072a5713e785925b0b", size = 7448692, upload-time = "2026-10-25T21:30:13.174Z" },
-    { url = "https://files.pythonhosted.org/packages/82/eb/c977a15b81f6af494d76f95e386f76ca37e82540207e419e44cf4277b327/dataprof-0.13.0-cp312-cp312-win_amd64.whl", hash = "sha256:d474614d6f5b87eb6458163c335565df8efbcbec99437ca4de2d3fe205ec30e8", size = 8274497, upload-time = "2026-10-25T21:30:14.874Z" },
+    { url = "https://files.pythonhosted.org/packages/bc/03/b8d4847ba40f5378300f999c75fdb327e32a0dbe882ce436ea679377cc56/dataprof-0.13.1-cp312-cp312-macosx_10_12_x86_64.whl", hash = "sha256:db1329aaae8a85358c4c98de90f4e797f8fe6bd663e24b695afea15746610261", size = 7591857, upload-time = "2026-10-28T16:54:15.93Z" },
+    { url = "https://files.pythonhosted.org/packages/24/cf/cbd9907b550b1b93a3df97223a37bfba1b3da098debebd5c4f758aacbcf5/dataprof-0.13.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:2b391955e8ba016c0d1cb16806176ce4b6f4788eda2d3e8d4fd93ae0a2817ad9", size = 7059812, upload-time = "2026-10-28T16:54:18.425Z" },
+    { url = "https://files.pythonhosted.org/packages/0c/d9/88c2d86f718655e37037b6e4e925fef4de771681889b9d7002982f2d48f8/dataprof-0.13.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:5514dd611db451003ca78779f5f0a8a3922dd9044dc8743c282bba38592a8c5a", size = 8041092, upload-time = "2026-10-28T16:54:20.179Z" },
+    { url = "https://files.pythonhosted.org/packages/f4/39/54b904c34f9d412987746ca6e5de7828ba62582995dc06b6d4974381c47a/dataprof-0.13.1-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:542a6075208cb375a3f5338b89acaedea8f49313238ee7120f23530abbcb25df", size = 7463509, upload-time = "2026-10-28T16:54:21.851Z" },
+    { url = "https://files.pythonhosted.org/packages/0e/41/d733e9f254ba9a1a9946e779b9b720fbc48dd02badd015c50976edb1a90e/dataprof-0.13.1-cp312-cp312-win_amd64.whl", hash = "sha256:d2041118766b209341d5519037a2b55988fbe8590c333f5b2d13d54ec1ae70eb", size = 8290982, upload-time = "2026-10-28T16:54:23.57Z" },
 ]
 
 [[package]]
@@ -120,7 +120,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "dataprof", specifier = "==0.13.0" },
+    { name = "dataprof", specifier = "==0.13.1" },
     { name = "dlt", extras = ["duckdb"], specifier = "==1.31.0" },
     { name = "duckdb", specifier = "==1.5.6" },
     { name = "portalocker", specifier = "==4.4.0" },

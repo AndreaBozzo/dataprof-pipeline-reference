@@ -7,7 +7,7 @@ Locked in `uv.lock`. Verified on Windows 11 with:
 | Package | Version |
 | --- | --- |
 | Python | 3.12.13 |
-| dataprof | 0.13.0 |
+| dataprof | 0.13.1 |
 | dlt | 1.31.0 |
 | duckdb | 1.5.6 |
 | pyarrow | 26.0.0 |
@@ -21,8 +21,8 @@ Locked in `uv.lock`. Verified on Windows 11 with:
 | sqlglot | 30.22.0 with dlt 1.31.0 | `pipeline.dataset()[...].arrow()` raises `TypeError` in lineage | `sqlglot<30.22` constraint; only the route parity test uses this API | dlt-hub/dlt#4537 |
 | dataprof | 0.12.0, fixed in 0.13.0 | `N/A`, `None`, `\N` are values, not nulls | Fixture IDs never use them; `tests/test_compat.py` | AndreaBozzo/dataprof#813 |
 | dataprof | 0.12.0, fixed in 0.13.0 | Zero-padded codes are typed integer | Fixture IDs carry a letter prefix; `tests/test_compat.py` | AndreaBozzo/dataprof#814 |
-| dataprof | 0.12.0, 0.13.0 | Timeliness reads the clock | Score and timeliness recorded, not gated | [findings](findings.md) G1 |
-| dataprof | 0.13.0 | A 0% null limit decides on the two-decimal value, so a null rate below 0.005% passes | Not handled; fixture tables are too small to reach it | [findings](findings.md) G8 |
+| dataprof | 0.12.0 to 0.13.1 | Timeliness reads the clock | Score and timeliness recorded, not gated | [findings](findings.md) G1 |
+| dataprof | 0.13.0, 0.13.1 | A 0% null limit decides on the two-decimal value, so a null rate below 0.005% passes | Not handled; fixture tables are too small to reach it. 0.13.1 adds `max_null_count`, not adopted yet | [findings](findings.md) G8 |
 
 ## Development builds
 
