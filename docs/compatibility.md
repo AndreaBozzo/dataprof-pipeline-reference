@@ -22,7 +22,7 @@ Locked in `uv.lock`. Verified on Windows 11 with:
 | dataprof | 0.12.0, fixed in 0.13.0 | `N/A`, `None`, `\N` are values, not nulls | Fixture IDs never use them; `tests/test_compat.py` | AndreaBozzo/dataprof#813 |
 | dataprof | 0.12.0, fixed in 0.13.0 | Zero-padded codes are typed integer | Fixture IDs carry a letter prefix; `tests/test_compat.py` | AndreaBozzo/dataprof#814 |
 | dataprof | 0.12.0 to 0.13.1 | Timeliness reads the clock | Score and timeliness recorded, not gated | [findings](findings.md) G1 |
-| dataprof | 0.13.0, 0.13.1 | A 0% null limit decides on the two-decimal value, so a null rate below 0.005% passes | Not handled; fixture tables are too small to reach it. 0.13.1 adds `max_null_count`, not adopted yet | [findings](findings.md) G8 |
+| dataprof | 0.13.0, 0.13.1 | A 0% null limit decides on the two-decimal value, so a null rate below 0.005% passes | From 0.13.1, policy v3 decides the 0% limits with `max_null_count` | [findings](findings.md) G8 |
 
 ## Development builds
 

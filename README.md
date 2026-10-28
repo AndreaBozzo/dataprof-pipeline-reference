@@ -30,7 +30,7 @@ run r20261010t095431_d37c37  batch batch-002  candidate cand_r20261010t095431_d3
   dataprof customers: pass
   dataprof orders: fail
     FAILED        max_null_percentage customer_id  observed 8.0  expected <= 2.0
-    passed        max_null_percentage order_id  observed 0.0  expected <= 0.0
+    passed        max_null_count order_id  observed 0  expected <= 0
   sql:
     passed        unique.orders.order_id  observed 0  expected == 0
     passed        reference.orders.customer_id  observed 0  expected == 0

@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import dataprof
+import duckdb
 import pytest
 from conftest import ORDERS, published_state, view_targets
 
 from pipeline_reference import ledger
+from pipeline_reference.contract import load_contract
 from pipeline_reference.scenarios import SCENARIOS
 from pipeline_reference.workflow import run_snapshot
 
@@ -104,6 +107,24 @@ def test_null_rate_observed_matches_planted(ws, snapshots):
     )
     assert check["status"] == "failed"
     assert check["observed"] == pytest.approx(8.0)
+
+
+def test_one_null_key_past_20000_rows_is_rejected():
+    """One null order_id in 20,001 rows is a null rate of 0.005%, shown as 0.0 (G8)."""
+    contract = load_contract()
+    conn = duckdb.connect()
+    conn.execute(
+        "CREATE TABLE orders AS SELECT "
+        "CASE WHEN i = 0 THEN NULL ELSE 'O' || i END AS order_id, "
+        "'C' || (i % 500) AS customer_id, 10.00::DECIMAL(12,2) AS amount, "
+        "'EUR' AS currency, TIMESTAMPTZ '2026-10-01 00:00:00+00' AS ordered_at "
+        "FROM range(20001) r(i)"
+    )
+    report = dataprof.profile(conn.sql("SELECT * FROM orders"))
+    gate = report.check(**contract.policy["dataprof"]["orders"]["check"])
+    failed = [(c["code"], c["column"]) for c in gate.to_dict()["checks"] if c["status"] == "failed"]
+    assert failed == [("max_null_count", "order_id")]
+    conn.close()
 
 
 def test_truncated_snapshot_is_caught_by_the_volume_floor(ws, snapshots):

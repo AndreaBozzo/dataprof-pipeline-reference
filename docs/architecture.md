@@ -29,7 +29,8 @@ created -> loading -> ready -> evaluated (accepted | rejected | inconclusive | o
 
 ## Gates
 
-- dataprof: row floor (`min_rows`), per-column null limits and a required
+- dataprof: row floor (`min_rows`), no nulls in required columns (exact
+  `max_null_count`), a null-rate limit on `orders.customer_id`, and a required
   completeness assessment,
   `scope="full_source"`, on the explicit business projection
   (`contracts/v1/policy.json`).
